@@ -9,6 +9,8 @@
 
 Although this isn't a tutorial, this README was written specifically with GetNextLine in mind. The aim is to present common patterns and approaches such as using strings, structs, or queues while staying aligned with what the project actually expects. If you're looking for deeper explanations or broader discussions on C programming techniques feel free to check out my other projects. 
 
+<br>
+
 ---
 
 # 📑 Table of Contents
@@ -20,6 +22,8 @@ Although this isn't a tutorial, this README was written specifically with GetNex
 * [🏗️ Solving with Structs](#-solving-with-structs)
 * [📬 Solving with Queues](#-solving-with-queues)
 * [📚 Additional Resources](#-additional-resources)
+
+<br>
 
 ---
 
@@ -37,25 +41,133 @@ Although this isn't a tutorial, this README was written specifically with GetNex
     └── get_next_line_utils_bonus.c
 ```
 
+<br>
+
 ---
 
 # 📄 About the Project
 
-> 🔍 **Objective**:
-> Implement a function that reads from a file descriptor, returning one line at a time, with each call.
+ Implement a function `get_next_line(int fd)` that returns the next line (including the trailing newline `\n` if present) from a file descriptor `fd`. Successive calls to the function should return successive lines until the end of the file is reached, at which point it returns `NULL`.
+
+## 🧾 Inputs and Outputs
+
+```c
+char *get_next_line(int fd);
+```
+
+### 🛠️ Inputs
+
+* `int fd` — a file descriptor opened for reading.
+* `BUFFER_SIZE` — a compile-time constant that defines how many bytes to read at once.
+
+### 📤 Outputs
+
+* A pointer to a dynamically allocated string ending with `\n` (if present in file), or without it at EOF.
+* Returns `NULL` on:
+
+  * Read error
+  * EOF **after** all lines have been returned
+  * Invalid file descriptor
+  * `BUFFER_SIZE < 1`
+
+
+## 📦 Normal vs Bonus
+
+| Feature                          | Mandatory                | Bonus                          |
+| -------------------------------- | ------------------------ | ------------------------------ |
+| Single file descriptor           | ✅                        | ✅                              |
+| Multiple file descriptors        | ❌ Undefined behavior     | ✅ Handles up to 4096 FDs       |
+| Static memory per FD             | `static t_queue *queue;` | `static t_queue *queue[4096];` |
+| Internal memory freeing          | On errors and EOF        | Per-FD cleanup                 |
+| Memory persistence between calls | ✅                        | ✅                              |
+
+
+
+## 🌀 Behavior with File Descriptors
+
+### 🔁 Normal
+
+The function **reuses a static queue** between function calls. Calling with a new `fd` overwrites the previous queue state, leading to undefined behavior if multiple files are open.
+
+### 🧠 Bonus
+
+Each `fd` has its **own isolated queue**, allowing simultaneous use of up to `4096` file descriptors. Each index in `queue[4096]` represents a unique buffer state for a specific `fd`.
+
+---
+
+## 🚫 Known Edge Cases & Failure Scenarios
+
+| Scenario                                     | Behavior                                                |
+| -------------------------------------------- | ------------------------------------------------------- |
+| `fd < 0` or `BUFFER_SIZE < 1`                | Returns `NULL` immediately                              |
+| `read(fd, NULL, 0) < 0`                      | Returns `NULL` and frees queue                          |
+| `read_file` fails or returns 0               | Cleanup + return `NULL` (empty read or allocation fail) |
+| `mem_size(queue) == 0`                       | Nothing left to extract → cleanup + return `NULL`       |
+| File with no newline                         | Returns the last chunk without `\n`                     |
+| Empty file                                   | Returns `NULL` immediately                              |
+| Last line ends without `\n`                  | Still returned correctly, then `NULL`                   |
+| Calling `get_next_line()` again after `NULL` | Still returns `NULL`, no memory leaks                   |
+
+---
+
+## 📋 Expected Outputs & Return Rules
+
+| File Content                    | Successive Calls                   | Final Call |
+| ------------------------------- | ---------------------------------- | ---------- |
+| `"Hello\nWorld\n"`              | `"Hello\n"`, `"World\n"`           | `NULL`     |
+| `"Hello\n"`                     | `"Hello\n"`                        | `NULL`     |
+| `"Hello"` *(no newline)*        | `"Hello"`                          | `NULL`     |
+| `""` *(empty file)*             | `NULL`                             | -          |
+| `BUFFER_SIZE` smaller than line | Assembles across multiple reads    | -          |
+| `read()` returns 0 or < 0       | `NULL` with internal queue cleanup | -          |
+
+---
+
+## ⚙️ BUFFER\_SIZE Guidelines
+
+`BUFFER_SIZE` directly affects performance, correctness, and edge behavior.
+
+* ✅ Should be **greater than 0** for GNL to function at all
+* ⚠️ Must be **tested with small values and large** (like 1, 1000) to ensure multi-read assembly logic works
+* 🧪 You should test with:
+
+  * Very **long lines** (e.g. > 10,000 characters)
+  * Files with **only one very long line**
+  * `BUFFER_SIZE == 1` to simulate char-by-char reading
+  * `BUFFER_SIZE == exact size of line` (ensure newline is respected)
+  * `BUFFER_SIZE > line length` (still returns only one line at a time)
+* ⚠️ Behavior is **undefined** if `BUFFER_SIZE` is changed between calls
+
+## 🧪 Compiling and Testing
+
+You can compile your code using gcc with -Wall -Wextra -Werror flags as required by 42 Norms.
+
+📦 Mandatory Version
+```bash
+gcc -Wall -Wextra -Werror -D BUFFER_SIZE=42 \
+    srcs/get_next_line.c \
+    srcs/get_next_line_utils.c \
+    main.c -o gnl #You can also write a main() function inside get_next_line.c
+```
+
+📦 Bonus Version
+```bash
+gcc -Wall -Wextra -Werror -D BUFFER_SIZE=42 \
+    srcs/get_next_line_bonus.c \
+    srcs/get_next_line_utils_bonus.c \
+    main_bonus.c -o gnl #You can also write a main() function inside get_next_line_bonus.c
+```
+You must define BUFFER_SIZE using `-D BUFFER_SIZE=X` when compiling, unless it's already defined in the header.
+
+
+<br>
 
 ---
 
 # 🧠 Notes
 
-> ⚠️ **Guidelines, quirks, and common pitfalls:**
-
 * ✅ Using `static` variables for buffer preservation
-* 🌀 Behavior of buffer with different file descriptors
-* 🧵 Delimiting by newline (`\n`) and handling EOF
-* 🚫 Known edge cases where GNL can fail
-* 📋 Expected outputs and return rules
-* 🧪 Guidelines for `BUFFER_SIZE` testing
+
 
 ---
 
