@@ -490,23 +490,73 @@ valgrind --leak-check=full --show-leak-kinds=all ./your_program
 
 # 🧵 Solving with Strings
 
-> A traditional, flat-buffer solution using helper string functions like `strchr`, `strjoin`, and `strlen`.
+This is the most `common solution` to GetNextLine using helper string functions from libft like ft_strchr, ft_strjoin, and ft_strlen. This approach is straightforward and accessible because many string utilities are already implemented or easy to adapt.
 
-* 📦 How to use a `static` leftover buffer
-* 🔄 Manual memory management of each new line
-* 🔍 Searching for `\n` and substring slicing
-* 💡 Tips for minimizing memory leaks
+## ❓ Why strings?
+Using strings to solve GetNextLine is a simple approach as many of the string manipulation functions you need are already implemented in libft and are easy to write yourself. Functions like `ft_strchr`, `ft_strjoin`, and `ft_strlen` make handling leftover buffers and incoming data easy. It allows you to treat the input as continuous text that you can search, join, and slice easily. 
+
+This method keeps your code simple and intuitive because it relies on familiar operations. It’s good for those who prefer working with basic data types without introducing additional complexity through custom data structures. Additionally, debugging string based solutions tends to be easier to deal with text buffers.
+
+## 🤔 What to consider
+While the string-based approach is simple, it requires **careful management of memory**. You need to **ensure that every allocation has a corresponding free to avoid leaks**, especially when concatenating buffers or slicing lines. Edge cases like files without newlines, empty inputs, or very large lines demand thorough handling to avoid reading errors or crashes. The leftover buffer must always be properly null-terminated and consistent, or your searches for newline characters may fail or cause undefined behavior. Since you use repeated concatenations, be careful of efficiency and avoid unnecessary copies where possible.
+
+## 🧵 Typical functions you will write or reuse:
+- `ft_strchr` - to find \n in a buffer or leftover string.
+- `ft_strjoin` - to concatenate leftover + new buffer content.
+- `ft_substr` - to extract line or remainder.
+- `Utility functions` - safe memory allocation and cleanup.
+
+## 👣 Step-by-step process
+
+1. `Validate inputs`: Check that file descriptor is valid, buffer size > 0, and accessible.
+2. `Initialize static leftover buffer`: If none exists, start with empty or NULL.
+3. `Search leftover for \n`: If found, split leftover into the line to return and new leftover.
+    - If no \n in leftover, read from fd: Use read() to fill a temporary buffer.
+4. `Append buffer to leftover`: Join the new buffer to leftover string.
+5. `Repeat search for \n`: If found, split and return line; else continue reading.
+    - If EOF reached: Return whatever is left as the last line or NULL if empty.
+6. `Manage memory carefully`: Free old leftover strings after joining, and free returned line after use.
+7. `Return line with newline` if present; else return last partial line on EOF.
+
+<br>
 
 ---
 
 # 🏗️ Solving with Structs
 
-> Modularize your state across file descriptors using custom-defined structs.
+This approach `encapsulates` all relevant information (fd, buffer, indexes, length) into one place, making the code `cleaner and more maintainable` and is useful for the bonus part with multiple FDs. This implementation is also a great opportunity to practice defining, creating, and using structs that will be valuable for many other projects later on in the 42 curriculum.
 
-* 📐 Struct layout to store fd, buffer, length, and index
-* 🧼 Easier memory cleanup through one container
-* 🧠 Better clarity and isolation for each FD
-* 🔄 Maintaining linked-lists or arrays of structs
+## ❓ Why structs?
+Choosing structs to organize your GetNextLine solution offers a clear, modular way to **encapsulate** all relevant state information for each file descriptor. By bundling the file descriptor, its buffer, the current read index, and the length of valid data into one structure, your code becomes cleaner, easier to maintain, and better organized. 
+
+This encapsulation is particularly helpful when handling multiple file descriptors simultaneously (the bonus part), as you can store each FD’s state separately and avoid global variables or confusing static buffers. Structs help improve code clarity and make it simpler to debug, as all related data for an FD is kept in one place. It also makes memory cleanup easier because you can free the entire struct when done.
+
+## 🤔 What to consider
+When working with structs, the main considerations revolve around how to manage multiple file descriptors effectively. You’ll need a strategy for storing and retrieving each FD’s struct, such as a dynamic array, which introduces some complexity in your implementation. **Memory management is crucial** and you must allocate memory for buffers and structs and ensure you free everything properly when a file is closed or EOF is reached to avoid leaks. 
+
+Keeping track of buffer indexes and lengths within the struct is important to correctly handle partial reads and leftover data. Although more complex than the string-only method, this approach scales better for real-world use cases involving multiple simultaneous file streams.
+
+## 🏗️ Typical struct fields you will design:
+```c
+typedef struct s_fd_buffer {
+    int fd;             // file descriptor
+    char *buffer;       // leftover or current read buffer
+    size_t buf_len;     // length of data in buffer
+    size_t index;       // current read position in buffer
+    struct s_fd_buffer *next; // pointer to next FD buffer (if linked list - bonus)
+} t_fd_buffer;
+```
+
+## 👣 Step-by-step process
+1. `Validate inputs`: Confirm fd validity and buffer size constraints.
+2. `Find or create struct for FD`: Search your FD list or array; create if not found.
+3. `Check leftover buffer inside struct for \n`: If newline found, split into return line and leftover.
+    - If no newline, read from fd into a temporary buffer: Append this to the struct’s buffer.
+4. `Update struct fields`: Adjust indexes and lengths to reflect consumed data.
+6. `Repeat reading and scanning for newline`: Until a line is ready or EOF reached.
+    - On EOF, return last remaining buffer content if any.
+7. `Free struct`: remove from list when EOF or error occurs.
+8. `Return malloc’d line`: including newline character if present.
 
 ---
 
@@ -528,7 +578,3 @@ valgrind --leak-check=full --show-leak-kinds=all ./your_program
 * `man 2 read`, `man 2 open`, `man 3 malloc`
 * YouTube explanations: \[GNL with structs], \[GNL queue walkthrough]
 * Memory visualization tools: \[Valgrind], \[malloc\_debugger]
-
----
-
-Would you like me to begin writing the full content for any of the sections above?
