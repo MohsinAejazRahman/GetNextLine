@@ -2,7 +2,7 @@
 
 `GetNextLine` is 1/3 of the mandatory projects in the 2nd circle of the 42 core curriculum. You are required to build a function that reads a line from a file ending with a newline character or EOF from a file descriptor, regardless of how many reads it takes. You must handle multiple buffers, static memory, edge cases, and memory management precisely while respecting the behavior of the system `read()` call. 
 
-`get_next_line()` returns one full line of input per call, even when reading from slow streams or fragmented data. The bonus supports simultaneous reads from multiple file descriptors. This project is an introduction to file I/O, retaining data between executions, and buffer-based data processing. 
+`get_nodeext_line()` returns one full line of input per call, even when reading from slow streams or fragmented data. The bonus supports simultaneous reads from multiple file descriptors. This project is an introduction to file I/O, retaining data between executions, and buffer-based data processing. 
 
 > 🔍 Note: 
 > This document is not a tutorial and does not walk you through code implementation line by line. Instead, it provides a comprehensive overview and the theoretical groundwork for different ways to tackle the project. All actual implementation logic should be written and understood by you. The .c files in my srcs/ directory will contain documentation specific to the functions used in my solution (which is implemented using a queue-based approach for line assembly and buffer management).
@@ -32,13 +32,15 @@ Although this isn't a tutorial, this README was written specifically with GetNex
 ```
 📁 GetNextLine/
 ├── README.md
-└── srcs/
-    ├── get_next_line.c
-    ├── get_next_line.h
-    ├── get_next_line_bonus.c
-    ├── get_next_line_bonus.h
-    ├── get_next_line_utils.c
-    └── get_next_line_utils_bonus.c
+└── srcs
+    ├── Bonus
+    │   ├── get_next_line_bonus.c
+    │   ├── get_next_line_bonus.h
+    │   └── get_next_line_utils_bonus.c
+    └── Mandatory
+        ├── get_next_line.c
+        ├── get_next_line.h
+        └── get_next_line_utils.c
 ```
 
 <br>
@@ -47,12 +49,12 @@ Although this isn't a tutorial, this README was written specifically with GetNex
 
 # 📄 About the Project
 
- Implement a function `get_next_line(int fd)` that returns the next line (including the trailing newline `\n` if present) from a file descriptor `fd`. Successive calls to the function should return successive lines until the end of the file is reached, at which point it returns `NULL`.
+ Implement a function `get_nodeext_line(int fd)` that returns the next line (including the trailing newline `\n` if present) from a file descriptor `fd`. Successive calls to the function should return successive lines until the end of the file is reached, at which point it returns `NULL`.
 
 ## 🧾 Inputs and Outputs
 
 ```c
-char *get_next_line(int fd);
+char *get_nodeext_line(int fd);
 ```
 
 ### 🛠️ Inputs
@@ -106,7 +108,7 @@ Each `fd` has its **own isolated queue**, allowing simultaneous use of up to `40
 | File with no newline                         | Returns the last chunk without `\n`                     |
 | Empty file                                   | Returns `NULL` immediately                              |
 | Last line ends without `\n`                  | Still returned correctly, then `NULL`                   |
-| Calling `get_next_line()` again after `NULL` | Still returns `NULL`, no memory leaks                   |
+| Calling `get_nodeext_line()` again after `NULL` | Still returns `NULL`, no memory leaks                   |
 
 ---
 
@@ -145,17 +147,17 @@ You can compile your code using gcc with -Wall -Wextra -Werror flags as required
 📦 Mandatory Version
 ```bash
 gcc -Wall -Wextra -Werror -D BUFFER_SIZE=42 \
-    srcs/get_next_line.c \
-    srcs/get_next_line_utils.c \
-    main.c -o gnl #You can also write a main() function inside get_next_line.c
+    srcs/get_nodeext_line.c \
+    srcs/get_nodeext_line_utils.c \
+    main.c -o gnl #You can also write a main() function inside get_nodeext_line.c
 ```
 
 📦 Bonus Version
 ```bash
 gcc -Wall -Wextra -Werror -D BUFFER_SIZE=42 \
-    srcs/get_next_line_bonus.c \
-    srcs/get_next_line_utils_bonus.c \
-    main_bonus.c -o gnl #You can also write a main() function inside get_next_line_bonus.c
+    srcs/get_nodeext_line_bonus.c \
+    srcs/get_nodeext_line_utils_bonus.c \
+    main_bonus.c -o gnl #You can also write a main() function inside get_nodeext_line_bonus.c
 ```
 You must define BUFFER_SIZE using `-D BUFFER_SIZE=X` when compiling, unless it's already defined in the header.
 
@@ -320,7 +322,7 @@ Flags can be combined with bitwise OR (`|`) to specify multiple behaviors. When 
 | `O_NONBLOCK`      | Open file in non-blocking mode                                   | For non-blocking I/O (e.g., pipes)  |
 | `O_SYNC`          | Writes are synchronized (blocking until data is written to disk) | Ensure data integrity               |
 
-In GNL testing, open() is used to acquire the file descriptor needed to call get_next_line(). Always verify that open() succeeded before proceeding.
+In GNL testing, open() is used to acquire the file descriptor needed to call get_nodeext_line(). Always verify that open() succeeded before proceeding.
 
 ### 🛑 close()
 `close()` closes an open file descriptor, freeing system resources. Its prototype is:
@@ -500,7 +502,7 @@ This method keeps your code simple and intuitive because it relies on familiar o
 ## 🤔 What to consider
 While the string-based approach is simple, it requires **careful management of memory**. You need to **ensure that every allocation has a corresponding free to avoid leaks**, especially when concatenating buffers or slicing lines. Edge cases like files without newlines, empty inputs, or very large lines demand thorough handling to avoid reading errors or crashes. The leftover buffer must always be properly null-terminated and consistent, or your searches for newline characters may fail or cause undefined behavior. Since you use repeated concatenations, be careful of efficiency and avoid unnecessary copies where possible.
 
-## 🧵 Typical functions you will write or reuse:
+## 🧰 Typical functions you will write or reuse:
 - `ft_strchr` - to find \n in a buffer or leftover string.
 - `ft_strjoin` - to concatenate leftover + new buffer content.
 - `ft_substr` - to extract line or remainder.
@@ -536,7 +538,7 @@ When working with structs, the main considerations revolve around how to manage 
 
 Keeping track of buffer indexes and lengths within the struct is important to correctly handle partial reads and leftover data. Although more complex than the string-only method, this approach scales better for real-world use cases involving multiple simultaneous file streams.
 
-## 🏗️ Typical struct fields you will design:
+## 🧰 Typical struct fields you will design:
 ```c
 typedef struct s_fd_buffer {
     int fd;             // file descriptor
@@ -548,7 +550,7 @@ typedef struct s_fd_buffer {
 ```
 
 ## 👣 Step-by-step process
-1. `Validate inputs`: Confirm fd validity and buffer size constraints.
+1. `Validate inputs`: Check that file descriptor is valid, buffer size > 0, and accessible.
 2. `Find or create struct for FD`: Search your FD list or array; create if not found.
 3. `Check leftover buffer inside struct for \n`: If newline found, split into return line and leftover.
     - If no newline, read from fd into a temporary buffer: Append this to the struct’s buffer.
@@ -558,23 +560,63 @@ typedef struct s_fd_buffer {
 7. `Free struct`: remove from list when EOF or error occurs.
 8. `Return malloc’d line`: including newline character if present.
 
+<br>
+
 ---
 
 # 📬 Solving with Queues
 
-> A dynamic, flexible approach using linked lists as character queues.
+This is my own implementation of GetNextLine using linked lists as character queues. I chose this approach because I wanted to challenge myself and explore a different way to manage the input buffer dynamically. Big thanks to [AzerSD](https://github.com/AzerSD) for suggesting this method. I had a lot of fun working with linked lists, building the queue structure, and separating the reading logic from the storage, which gave me a fresh perspective on solving the problem.
 
-* 📫 Appending characters into a line queue
-* 🧺 Rebuilding the line with `malloc` after `\n`
-* 🔄 Decouples read logic from storage logic
-* ✂️ Easy implementation of multi-FD logic
+## ❓ Why queues?
+Using queues (implemented as linked lists) for GetNextLine offers a flexible and dynamic way to handle incoming characters one by one. Instead of managing a large contiguous string buffer, you store each character in a node that links to the next, forming a queue. This approach:
+- **Avoids large memory reallocations** required by string concatenation.
+- **Allows appending read characters** efficiently at the tail and consuming from the head.
+- **Clearly separates reading input** (enqueueing) from line extraction (dequeuing).
+- **Fits naturally with line-by-line reading** because you can stop appending once you hit \n.
+- **Simplifies memory management** for partial reads and leftover data since each node can be freed individually.
+
+This method also serves well for handling multiple file descriptors by maintaining separate queues for each FD (commonly implemented as linked lists of queues).
+
+## 🤔 What to consider
+
+While using queues offers great flexibility, it also introduces a fair amount of complexity. You need to define custom data structures—such as `t_node` nodes and `t_queue` queues and implement supporting functions to initialize the queue, append characters, extract lines, and free memory. `Careful memory management is essential`, as every node you malloc must eventually be freed to prevent leaks. Rebuilding the final line involves iterating through the queue and copying each character into a new, contiguous string, which adds extra overhead compared to using direct array indexing with strings. Additionally, the logic for buffering and reading becomes more intricate, since you have to determine exactly when to enqueue new characters and when to stop reading based on the presence of a newline character.
+
+## 🧰 Typical queue data structures:
+```c
+typedef struct s_node
+{
+    char            value;    // single character
+    struct s_node   *next;    // pointer to next node in queue
+}   t_node;
+
+typedef struct s_queue
+{
+    t_node     *head;    // front of the queue (next char to read)
+    t_node     *tail;    // end of the queue (where new chars are appended)
+    int         size;     // number of chars currently stored
+}   t_queue;
+
+```
+
+## 👣 Step-by-step process
+1. `Validate inputs`: Check that file descriptor is valid, buffer size > 0, and accessible.
+2. `Initialize queue`: Create a new queue if none exists for the current FD.
+3. `Read from fd into buffer`: Use read() to fill a temporary buffer.
+4. `Append buffer chars to queue`: For each character read, create a new node and add it to the queue’s tail.
+5. `Stop reading when newline found`: Use a helper like ft_strchr to detect if \n is in the buffer; if yes, break reading loop.
+6. `Calculate line length`: Count nodes in queue up to and including the first \n if present.
+7. `Allocate line string`: Allocate a char * of size equal to the counted length + 1 for \0.
+8. `Extract line from queue`: Remove nodes from the head of the queue, copying their characters into the allocated string.
+9. `Free consumed nodes`: As you dequeue chars, free each node.
+10. `Return the assembled line`: The returned string contains the line including the newline character if present.
+11. `Free all on EOF or error`: If read returns 0 (EOF) and queue is empty, free the queue structure and return NULL.
+
+<br>
 
 ---
 
 # 📚 Additional Resources
 
-> 📌 Recommended docs, man pages, and 42 threads:
-
 * `man 2 read`, `man 2 open`, `man 3 malloc`
-* YouTube explanations: \[GNL with structs], \[GNL queue walkthrough]
-* Memory visualization tools: \[Valgrind], \[malloc\_debugger]
+* [YouTube explanations](https://www.youtube.com/watch?v=8E9siq7apUU&pp=ygUKI2xpbmVyZWFkcw%3D%3D&themeRefresh=1)

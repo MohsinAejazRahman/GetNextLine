@@ -6,7 +6,7 @@
 /*   By: mohrahma <mohrahma@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/01 19:06:52 by mohrahma          #+#    #+#             */
-/*   Updated: 2024/04/04 04:19:27 by mohrahma         ###   ########.fr       */
+/*   Updated: 2025/06/22 04:53:21 by mohrahma         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -103,40 +103,3 @@ char	*get_next_line(int fd)
 	line = get_l(&queue);
 	return (line);
 }
-
-// #include <stdio.h>
-// int	main(void)
-// {
-// 	char	*line;
-// 	int		fd;
-// 	int		flag;
-
-// 	flag = 1;
-// 	fd = open("file", O_RDONLY);
-// 	while (flag++ < 3)
-// 	{
-// 		line = get_next_line(fd);
-// 		printf("line = |%s|\n", line);
-// 		free (line);
-// 		if (!line)
-// 			break ;
-// 	}
-// 	flag = 1;
-// 	printf("fd: %d\n", fd);
-// 	close(fd);
-// 	line = get_next_line(fd);
-// 	printf("line asdf= |%s|\n", line);
-// 	free(line);
-// 	fd = open("file", O_RDONLY);
-// 	printf("-----------------\n");
-// 	while (flag == 1)
-// 	{
-// 		line = get_next_line(fd);
-// 		printf("line = |%s|\n", line);
-// 		free (line);
-// 		if (!line)
-// 			break ;
-// 	}
-// 	close(fd);
-// 	return (1);
-// }
