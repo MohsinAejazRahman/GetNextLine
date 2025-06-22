@@ -166,14 +166,194 @@ You must define BUFFER_SIZE using `-D BUFFER_SIZE=X` when compiling, unless it's
 
 # 🧠 Notes
 
-> ⚠️ **Guidelines, quirks, and common pitfalls:**
+## 🧩 Static
+In C, the keyword static is a storage class specifier that alters the lifetime, visibility (linkage), and storage location of variables and functions. 
 
-* ✅ Using `static` variables for buffer preservation
-* 🌀 Behavior of buffer with different file descriptors
-* 🧵 Delimiting by newline (`\n`) and handling EOF
-* 🚫 Known edge cases where GNL can fail
-* 📋 Expected outputs and return rules
-* 🧪 Guidelines for `BUFFER_SIZE` testing
+- `static` tells the compiler that the variable or function it modifies should persist for the **entire duration of the program, not just the scope where it is declared.**
+- It `changes the storage duration` **from automatic (stack-based) to static storage duration**, meaning the variable is allocated once and retains its value across multiple function calls or scopes.
+- It affects `linkage`: **whether the symbol is visible** outside its translation unit (file).
+
+Unlike ordinary local variables which are typically stored on the stack (automatic storage), static variables are stored in a data segment of the program's memory. The data segment is divided into:
+- `Initialized data segment`: For static variables initialized with a value.
+- `BSS segment`: For static variables initialized to zero or left uninitialized.
+
+This memory is allocated once at program startup and freed only when the program terminates. Heap allocation (malloc etc.) is separate and unrelated to static. static variables have fixed memory reserved at compile/load time, not dynamic at runtime.
+
+### ⚖️ Differences between static and non-static variables
+| Aspect                  | Non-static local variable               | `static` local variable                |
+| ----------------------- | --------------------------------------- | -------------------------------------- |
+| **Storage duration**    | Automatic (stack)                       | Static (data segment)                  |
+| **Lifetime**            | Until function returns                  | Entire program run                     |
+| **Initialization**      | Undefined if not explicitly set         | Zero-initialized by default if omitted |
+| **Value preservation**  | Does **not** retain value between calls | Retains value between function calls   |
+| **Scope (visibility)**  | Only within the block/function          | Only within the block/function (scope) |
+| **Linkage (if global)** | N/A                                     | Internal linkage (file scope)          |
+
+### 🏢 Static at file/global scope
+
+When used outside of a function, static changes linkage rather than storage duration (which is static by default for globals):
+
+```c
+static int counter = 0; // Visible only in this file (internal linkage)
+int global_var = 5;     // Visible externally (external linkage)
+```
+
+Static global variables or functions are private to the file and cannot be accessed from other files, avoiding naming conflicts. Non-static globals have external linkage and can be referenced from other files.
+ 
+`Functions` which are labelled static, they "remember" a value between calls without exposing it globally. `Global variables and fucntion` labelled static restrict the variable/function visibility to one source file, improving encapsulation and avoiding symbol collisions. Static `variables` are initialized only once at program startup. If you don't provide explicit initialization, they are zero-initialized automatically. 
+
+Using static does not allocate memory on the stack, so you cannot take their address expecting stack lifetime behavior. Therefore, avoid overusing static in headers or shared libraries because it limits reusability and can cause unexpected duplication if used incorrectly.
+
+## 🔧 Allowed External Functions
+In the GetNextLine project, your implementation is restricted to using only a few standard library functions to manage reading and memory. Understanding how these functions behave is crucial for writing a correct and efficient solution.
+
+### 📥 read()
+The `read()` system call is fundamental to the GetNextLine project. It attempts to read a specified number of bytes from a file descriptor (fd) into a buffer. Its prototype is: 
+
+```c
+ssize_t read(int fd, void *buf, size_t count);
+```
+
+Input:
+- `fd (file descriptor)` - (which must be open for reading)
+- `*buf` where the read bytes will be stored
+- `count` - the maximum number of bytes to read 
+
+Output
+- `number of bytes read` - which can be less than count
+- `0` - end-of-file (EOF)
+- `-1` if an error occurs (e.g., invalid fd)
+
+In GNL, read() is called repeatedly until a newline is found or EOF is reached. Handling partial reads is essential since lines may be fragmented across multiple reads. Always check the return value to detect errors or EOF conditions.
+
+```c
+char buffer[BUFFER_SIZE];
+ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
+
+if (bytes_read < 0)
+    // Handle error
+else if (bytes_read == 0)
+    // EOF reached
+else
+    // Process buffer contents
+```
+
+### 🧠 malloc()
+`malloc()` dynamically allocates memory from the heap and returns a pointer to it, or NULL if allocation fails. Its prototype is:
+
+```c
+void *malloc(size_t size);
+```
+
+Input:
+- `size` -the number of bytes allocated
+
+Output:
+- `pointer to allocated block` - the returned memory is uninitialized
+
+In GNL, malloc() is used to allocate buffers for assembling lines or storing temporary data. Checking for NULL is critical to prevent dereferencing invalid pointers. Always pair allocations with appropriate free() calls to avoid leaks.
+
+Example snippet:
+
+```c
+char *line = malloc(100);
+if (!line)
+    // Handle allocation failure
+```
+
+### 🧹 free()
+The `free()` function releases memory previously allocated by malloc() or related functions. Its prototype is:
+
+```c
+void free(void *ptr);
+```
+
+Input:
+- `ptr` - a pointer to the allocated memory to be freed
+- Passing invalid or already freed pointers leads to undefined behavior. 
+
+In GNL, free() is used extensively to release temporary buffers, leftover memory, and queues when lines are fully processed or an error /EOF occurs. Proper freeing is crucial to maintain memory hygiene and avoid leaks.
+
+Example snippet:
+
+```c
+free(line);
+line = NULL; // Good practice to avoid dangling pointers
+```
+
+## 🧪 Testing Functions
+
+### 🗂️ open()
+`open()` is used to open files and obtain a file descriptor. Its prototype is:
+
+```c
+int open(const char *pathname, int flags);
+```
+
+Input:
+- `pathname` - file path 
+- `flags` - flags such as O_RDONLY for read-only access. 
+
+Output:
+- `fd` - a non-negative integer (the file descriptor), 
+- `-1` - on failure (e.g., file not found or permission denied)
+
+```c
+int fd = open("file.txt", O_RDONLY);
+if (fd < 0)
+    // Handle open failure
+```
+
+Flags in open() are used to define the access mode, file creation rules, and additional settings that determine how the file is opened and accessed. This is done to ensure the file behaves exactly as needed for the specific operation, such as reading, writing, appending, or creating new files safely. These flags are defined in `<fcntl.h>`.
+
+Flags can be combined with bitwise OR (`|`) to specify multiple behaviors. When using `O_CREAT`, a third argument specifying the file permission mode (e.g., `0644`) is required.
+
+| Flag              | Description                                                      | Typical Usage                       |
+|-------------------|------------------------------------------------------------------|-------------------------------------|
+| `O_RDONLY`        | Open file for read-only access                                   | Read only                           |
+| `O_WRONLY`        | Open file for write-only access                                  | Write only                          |
+| `O_RDWR`          | Open file for both reading and writing                           | Read and write                      |
+| `O_CREAT`         | Create file if it does not exist                                 | Requires a mode argument            |
+| `O_EXCL`          | Ensure that `O_CREAT` fails if file exists                       | Used for exclusive file creation    |
+| `O_TRUNC`         | Truncate file to zero length if it exists                        | Clear contents when opening         |
+| `O_APPEND`        | Append data to the end of the file on each write                 | Writes will always add to file end  |
+| `O_NONBLOCK`      | Open file in non-blocking mode                                   | For non-blocking I/O (e.g., pipes)  |
+| `O_SYNC`          | Writes are synchronized (blocking until data is written to disk) | Ensure data integrity               |
+
+In GNL testing, open() is used to acquire the file descriptor needed to call get_next_line(). Always verify that open() succeeded before proceeding.
+
+### 🛑 close()
+`close()` closes an open file descriptor, freeing system resources. Its prototype is:
+
+```c
+int close(int fd);
+```
+
+Input:
+- `fd` - file descriptor to the file to be closed
+
+Output:
+- `0` - on success 
+- `-1` on failure (e.g., invalid fd). 
+
+Closing file descriptors after use is a best practice that enhances system stability, security, and data correctness key factors that professional grade software must address. Properly closing file descriptors after use prevents resource leaks and ensures stability during multiple tests or long-running programs. 
+
+`System resource management`: Each open file descriptor consumes a finite system resource. Most operating systems impose limits on how many file descriptors a single process or the entire system can have open simultaneously. If you fail to close fds properly, your program risks exhausting these limits, which leads to the inability to open new files or sockets and may cause unexpected program crashes or hangs. This issue becomes more pronounced in applications that handle many files or network connections concurrently.
+
+`Security considerations`: Open file descriptors can inadvertently expose sensitive data or files if not closed promptly. Leaving files open longer than necessary can increase the attack surface, as malicious actors or buggy code might access or manipulate these files unexpectedly. Properly closing files ensures you minimize the window during which unauthorized access could occur.
+
+`Data integrity`: Closing a file descriptor typically triggers the flushing of buffered data to disk, ensuring all writes are fully committed. Neglecting to close files properly may result in partial writes, data corruption, or loss, especially in applications where data consistency is critical.
+
+`Clean and maintainable code`: Explicitly closing file descriptors signals to other developers (and future you) that resources are being managed consciously and responsibly. It helps avoid "resource leaks," which are often subtle bugs that degrade performance over time and are notoriously difficult to track down in large codebases.
+
+In GNL tests, it is essential to always close file descriptors (fd) after you have finished reading or writing. This practice is crucial for several reasons, especially when scaling to larger projects or working in professional environments.
+
+```c
+if (close(fd) < 0)
+    // Handle close error
+```
+
+<br>
 
 ---
 
