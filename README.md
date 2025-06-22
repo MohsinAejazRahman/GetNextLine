@@ -353,6 +353,137 @@ if (close(fd) < 0)
     // Handle close error
 ```
 
+## 🧠 Memory Management
+
+Mastering memory management in C is essential for writing robust, efficient, and leak-free programs. Understanding memory types is crutial to manage memory properly:
+- `Stack Memory`: Automatically managed, local variables are created and destroyed as functions enter and exit. You don't explicitly allocate or free stack memory
+- `Heap Memory`: Manually managed via malloc(), calloc(), realloc(), and free(). Memory stays allocated until you explicitly free it
+
+### ✅ Good Practices
+`Always Check Allocation Results`
+
+This is crutial to avoid undefined behaviour. Never assume memory allocation succeeds and always verify pointers before use:
+
+```c
+char *buffer = malloc(size);
+
+if (!buffer)
+{
+    // Handle allocation failure immediately
+    perror("malloc failed");
+    exit(EXIT_FAILURE);
+}
+```
+
+<br>
+
+`Free Every Allocated Block`
+
+Every malloc() or related call must be paired with a free() once the memory is no longer needed. Forgetting to free leads to memory leaks which cause programs to consume increasing memory over time.
+
+```c
+char *line = malloc(100);
+
+if (!line)
+    return NULL;
+
+// Use line for processing...
+
+free(line);  // Free memory as soon as done
+line = NULL; // Avoid dangling pointer
+```
+
+<br>
+
+
+`Avoid Double Freeing`
+
+Calling free() on the same pointer more than once causes undefined behavior, often crashes. After freeing a pointer, set it to NULL to avoid accidental reuse.
+
+```c
+free(buffer);
+buffer = NULL;
+```
+
+<br>
+
+
+`Use Clear Ownership and Lifetimes`
+
+Define clear ownership of memory in your program. Know which function or module is responsible for allocating and which for freeing. Passing ownership implicitly leads to confusion and leaks.
+
+```c
+// Function allocates memory and transfers ownership to the caller
+char *read_line(int fd)
+{
+    char *line = malloc(1024);
+    if (!line)
+        return NULL;
+    // read into line
+    return line; // Caller must free
+}
+
+// Caller is responsible for freeing
+char *line = read_line(fd);
+if (line)
+{
+    // Use line
+    free(line);  // Clear ownership: caller frees
+}
+```
+
+<br>
+
+
+`Minimize Dynamic Allocation Where Possible`
+
+Don’t overuse dynamic memory if stack variables or static buffers suffice. Excessive allocations can fragment memory and reduce performance.
+
+```c
+// Using stack buffer instead of malloc
+void process()
+{
+    char buffer[256];  // Automatically freed on function return
+    // Use buffer safely without malloc/free overhead
+}
+```
+
+<br>
+
+
+`Keep Allocation and Deallocation Close`
+
+Try to malloc() and free() in the same function or module, if possible. This makes tracking memory easier and reduces bugs.
+
+```c
+char *duplicate_string(const char *s)
+{
+    char *copy = malloc(strlen(s) + 1);
+    if (!copy)
+        return NULL;
+    strcpy(copy, s);
+
+    // Do some processing...
+
+    free(copy);  // Allocation and deallocation in the same scope
+    return NULL; // or return something else, no leaks here
+}
+
+```
+
+<br>
+
+
+`Use Tools to Detect Memory Issues`
+
+Use Valgrind or similar memory checkers to detect leaks, invalid frees, or memory corruption. Regularly test your program with these tools during development.
+
+```bash
+valgrind --leak-check=full --show-leak-kinds=all ./your_program
+```
+
+
+
 <br>
 
 ---
